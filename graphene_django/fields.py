@@ -1,6 +1,8 @@
 from functools import partial
 
+from django.conf import settings
 from django.db.models.query import QuerySet
+from django.utils import module_loading
 
 from graphene.types import Field, List
 from graphene.relay import ConnectionField, PageInfo
@@ -71,6 +73,13 @@ class DjangoConnectionField(ConnectionField):
 
 
 def get_connection_field(*args, **kwargs):
+    if hasattr(settings, 'GRAPHENE_DJANGO_CUSTOM_CONNECTION_FIELD'):
+        import_module = getattr(module_loading, 'import_string', getattr(module_loading, 'import_by_path', None))
+        if import_module is None:
+            raise ImportError('Could not load either {module}.import_string or {module}.import_by_path. Make sure '
+                              'you are using at least Django>=1.6.0.'.format(module='django.utils.module_loading'))
+        CustomConnectionField = import_module(settings.GRAPHENE_DJANGO_CUSTOM_CONNECTION_FIELD)
+        return CustomConnectionField(*args, **kwargs)
     if DJANGO_FILTER_INSTALLED:
         from .filter.fields import DjangoFilterConnectionField
         return DjangoFilterConnectionField(*args, **kwargs)
